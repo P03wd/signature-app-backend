@@ -14,7 +14,9 @@ router.get("/", (req, res) => {
 // Get audit logs for a document
 router.get("/:documentId", authMiddleware, async (req, res) => {
   try {
-    const logs = await Audit.find({ documentId: req.params.documentId }).populate("userId", "name email");
+    // Match schema fields: 'document' and 'user'
+    const logs = await Audit.find({ document: req.params.documentId })
+      .populate("user", "name email");
     res.json(logs);
   } catch (err) {
     console.error(err);
