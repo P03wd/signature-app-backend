@@ -14,6 +14,7 @@ const signatureSchema = new mongoose.Schema(
     },
   },
   { _id: false }
+
 );
 
 // Document schema
@@ -36,6 +37,15 @@ const documentSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    // NEW FIELD → signed pdf path
+signedFilePath: {
+  type: String,
+},
+
+// NEW FIELD → when document got fully signed
+signedAt: {
+  type: Date,
+},
     allowedSigners: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -50,6 +60,7 @@ const documentSchema = new mongoose.Schema(
     signatures: [signatureSchema],
   },
   { timestamps: true }
+  
 );
 
 export default mongoose.model("Document", documentSchema);

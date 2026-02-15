@@ -3,6 +3,7 @@ import path from "path";
 import mongoose from "mongoose";
 import Document from "../models/document.js";
 import User from "../models/user.js";
+import { PDFDocument, rgb } from "pdf-lib";
 
 
 /**
@@ -155,48 +156,98 @@ export const inviteSigner = async (req, res) => {
 /**
  * SIGN DOCUMENT
  */
+// export const signDocument = async (req, res) => {
+//   try {
+//     const doc = await Document.findById(req.params.id);
+
+//     if (!doc)
+//       return res.status(404).json({ message: "Document not found" });
+
+//     const isInvited = doc.allowedSigners.some(
+//       id => id.toString() === req.user.id
+//     );
+
+//     if (!isInvited)
+//       return res.status(403).json({ message: "Not invited to sign" });
+
+//     const alreadySigned = doc.signatures.some(
+//       sig => sig.user.toString() === req.user.id
+//     );
+
+//     if (alreadySigned)
+//       return res.status(400).json({ message: "Already signed" });
+
+//     doc.signatures.push({ user: req.user.id });
+
+//     doc.status =
+//       doc.signatures.length === doc.allowedSigners.length
+//         ? "signed"
+//         : "partially_signed";
+
+//     await doc.save();
+
+//     const populatedDoc = await Document.findById(doc._id)
+//       .populate("owner", "name email")
+//       .populate("allowedSigners", "name email")
+//       .populate("signatures.user", "name email");
+
+//     res.json({
+//       message: "Document signed successfully",
+//       document: populatedDoc,
+//     });
+
+//   } catch (error) {
+//     console.error("SIGN ERROR:", error);
+//     res.status(500).json({ message: error.message });
+//   }
+// };
+
+
 export const signDocument = async (req, res) => {
   try {
-    const doc = await Document.findById(req.params.id);
+    const { id } = req.params;
 
-    if (!doc)
-      return res.status(404).json({ message: "Document not found" });
+    const doc = await Document.findById(id);
+    if (!doc) return res.status(404).json({ message: "Document not found" });
 
-    const isInvited = doc.allowedSigners.some(
-      id => id.toString() === req.user.id
-    );
+    // read original pdf
+    const existingPdfBytes = fs.readFileSync(doc.filePath);
 
-    if (!isInvited)
-      return res.status(403).json({ message: "Not invited to sign" });
+    // load pdf
+    const pdfDoc = await PDFDocument.load(existingPdfBytes);
 
-    const alreadySigned = doc.signatures.some(
-      sig => sig.user.toString() === req.user.id
-    );
+    const pages = pdfDoc.getPages();
+    const firstPage = pages[0];
 
-    if (alreadySigned)
-      return res.status(400).json({ message: "Already signed" });
+    // add signature text
+    firstPage.drawText(`Signed by ${req.user.email}`, {
+      x: 50,
+      y: 100,
+      size: 16,
+      color: rgb(0, 0.53, 0.71),
+    });
 
-    doc.signatures.push({ user: req.user.id });
+    // save new pdf
+    const signedPdfBytes = await pdfDoc.save();
 
-    doc.status =
-      doc.signatures.length === doc.allowedSigners.length
-        ? "signed"
-        : "partially_signed";
+    const signedPath = `uploads/signed-${Date.now()}.pdf`;
+
+    fs.writeFileSync(signedPath, signedPdfBytes);
+
+    // update database
+    doc.signedFilePath = signedPath;
+    doc.signedAt = new Date();
+    doc.status = "Signed";
 
     await doc.save();
 
-    const populatedDoc = await Document.findById(doc._id)
-      .populate("owner", "name email")
-      .populate("allowedSigners", "name email")
-      .populate("signatures.user", "name email");
-
     res.json({
       message: "Document signed successfully",
-      document: populatedDoc,
+      signedFile: signedPath
     });
 
-  } catch (error) {
-    console.error("SIGN ERROR:", error);
-    res.status(500).json({ message: error.message });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Signing failed" });
   }
 };
