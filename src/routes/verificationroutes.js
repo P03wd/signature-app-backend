@@ -1,14 +1,14 @@
-// backend/routes/verificationroutes.js
+// backend/src/routes/verificationroutes.js
 import express from "express";
 import { verifySignature } from "../controllers/verificationcontroller.js";
+import authMiddleware from "../middleware/authmiddleware.js";
 
 const router = express.Router();
 
-/**
- * @route   POST /api/verification/verify
- * @desc    Verify a signature for a document
- * @access  Public (or add authMiddleware if you want private access)
- */
-router.post("/verify", verifySignature);
+/* =====================================================
+   VERIFY SIGNATURE
+   Optional: Auth-protected if you want logged-in users only
+===================================================== */
+router.post("/verify", /* authMiddleware, */ verifySignature);
 
 export default router;

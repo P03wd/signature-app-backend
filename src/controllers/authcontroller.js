@@ -7,11 +7,22 @@ import jwt from "jsonwebtoken";
  */
 export const registerUser = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    let { name, email, password } = req.body;
+
+    // sanitize
+    name = name?.trim();
+    email = email?.trim().toLowerCase();
+    password = password?.trim();
 
     // validation
     if (!name || !email || !password) {
       return res.status(400).json({ message: "All fields required" });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        message: "Password must be at least 6 characters",
+      });
     }
 
     // check existing user
@@ -21,7 +32,7 @@ export const registerUser = async (req, res) => {
     }
 
     // hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 12);
 
     // create user
     const user = await User.create({
@@ -32,6 +43,7 @@ export const registerUser = async (req, res) => {
 
     res.status(201).json({
       message: "User registered successfully",
+      token: generateToken(user),
       user: {
         id: user._id,
         name: user.name,
@@ -39,52 +51,72 @@ export const registerUser = async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("REGISTER ERROR:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
+
 
 /**
  * LOGIN USER
  */
 export const loginUser = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    let { email, password } = req.body;
 
-    // validation
+    // sanitize
+    email = email?.trim().toLowerCase();
+    password = password?.trim();
+
     if (!email || !password) {
       return res.status(400).json({ message: "All fields required" });
     }
 
     // find user
     const user = await User.findOne({ email });
-    if (!user)
-      return res.status(404).json({ message: "User not found" });
 
-    // check password
+    // do not reveal which failed
+    if (!user) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    // compare password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    // generate token
-    const token = jwt.sign(
-      { id: user._id,
-        email: user.email
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
-
-    res.json({
+    res.status(200).json({
       message: "Login successful",
-      token,
+      token: generateToken(user),
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
       },
     });
+
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("LOGIN ERROR:", error);
+    res.status(500).json({ message: "Server error" });
   }
+};
+
+
+/**
+ * GENERATE JWT TOKEN
+ */
+const generateToken = (user) => {
+  if (!process.env.JWT_SECRET) {
+    throw new Error("JWT_SECRET missing in .env");
+  }
+
+  return jwt.sign(
+    {
+      id: user._id,
+      email: user.email,
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: "7d" }
+  );
 };

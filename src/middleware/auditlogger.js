@@ -1,26 +1,38 @@
 import Audit from "../models/audit.js";
 
+/**
+ * AUDIT LOGGER MIDDLEWARE
+ * Logs user actions like upload, delete, sign, etc.
+ */
 const auditLogger = (action) => {
   return async (req, res, next) => {
     try {
-      const documentId = req.body.documentId || req.params.documentId;
-      if (!documentId) {
-        console.warn("Audit skipped: No documentId provided");
-        return next();
-      }
+      const documentId =
+        req.body.documentId ||
+        req.params.documentId ||
+        req.params.id ||
+        null;
 
+      // allow logging even if user not logged in (public routes)
+      const userId = req.user?.id || null;
+
+      // create audit log
       await Audit.create({
-        documentId,
-        userId: req.user.id,
         action,
-        ip: req.ip,
+        document: documentId,
+        user: userId,
+        ip: req.headers["x-forwarded-for"] || req.socket.remoteAddress,
+        method: req.method,
+        route: req.originalUrl,
+        userAgent: req.headers["user-agent"] || "unknown",
       });
 
-      next();
     } catch (err) {
-      console.error("Audit logging error:", err);
-      next();
+      console.error("Audit log failed:", err.message);
+      // never block request if logging fails
     }
+
+    next();
   };
 };
 

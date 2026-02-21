@@ -1,33 +1,27 @@
-import Doc from "../models/document.js";
-import mongoose from "mongoose";
+import Document from "../models/document.js";
 
 export const verifySignature = async (req, res) => {
   try {
-    const { docId, signerId } = req.body;
+    const { documentId, signatureData } = req.body;
 
-    // Validate input
-    if (!docId || !signerId) {
-      return res.status(400).json({ message: "docId and signerId are required" });
-    }
+    const doc = await Document.findById(documentId)
+      .populate("signatures.user", "name email");
 
-    // Validate ObjectId
-    if (!mongoose.Types.ObjectId.isValid(docId) || !mongoose.Types.ObjectId.isValid(signerId)) {
-      return res.status(400).json({ message: "Invalid document or signer ID" });
-    }
+    if (!doc) return res.status(404).json({ message: "Document not found" });
 
-    // Find document
-    const document = await Doc.findById(docId);
-    if (!document) return res.status(404).json({ message: "Document not found" });
+    const signature = doc.signatures.find(
+      s => s.signatureData === signatureData
+    );
 
-    // Find signature
-    const signature = document.signatures.find(sig => sig.user.toString() === signerId);
-    if (!signature) return res.status(400).json({ message: "Signature not found" });
+    if (!signature)
+      return res.status(404).json({ message: "Signature invalid" });
 
-    // Verification logic (placeholder)
-    res.status(200).json({ message: "Signature verified", signature: { user: signature.user, signedAt: signature.signedAt } });
+    res.json({
+      message: "Signature verified",
+      signature,
+    });
 
-  } catch (error) {
-    console.error("VERIFY SIGNATURE ERROR:", error);
+  } catch (err) {
     res.status(500).json({ message: "Server error" });
   }
 };

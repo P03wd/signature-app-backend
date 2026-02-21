@@ -1,18 +1,14 @@
+import User from "../models/user.js";
+
 export const getUserProfile = async (req, res) => {
   try {
-    if (!req.user) {
-      return res.status(401).json({ message: "Unauthorized: No user logged in" });
-    }
+    const user = await User.findById(req.user._id).select("-password");
 
-    res.status(200).json({
-      message: "User profile fetched successfully",
-      user: {
-        id: req.user.id,
-        email: req.user.email,
-        name: req.user.name || "N/A", // in case name isn't in the token
-      },
+    res.json({
+      success: true,
+      user,
     });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  } catch (err) {
+    res.status(500).json({ message: "Server error" });
   }
 };

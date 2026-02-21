@@ -1,22 +1,31 @@
-// backend/routes/signatureroutes.js
+// backend/src/routes/signatureroutes.js
 import express from "express";
 import { signDocument, getSignatures } from "../controllers/signaturecontroller.js";
 import authMiddleware from "../middleware/authmiddleware.js";
+import auditLogger from "../middleware/auditlogger.js";
 
 const router = express.Router();
 
-/**
- * @route   POST /api/signatures/sign/:documentId
- * @desc    Sign a document (logs audit)
- * @access  Authenticated users
- */
-router.post("/sign/:documentId", authMiddleware, signDocument);
+/* =====================================================
+   SIGN DOCUMENT
+   Any logged-in user can sign any document
+===================================================== */
+router.post(
+  "/sign/:documentId",
+  authMiddleware,
+  auditLogger("SIGN_DOCUMENT"),
+  signDocument
+);
 
-/**
- * @route   GET /api/signatures/list/:documentId
- * @desc    Get all signatures for a document
- * @access  Authenticated users
- */
-router.get("/list/:documentId", authMiddleware, getSignatures);
+/* =====================================================
+   GET ALL SIGNATURES
+   Any logged-in user can view signatures
+===================================================== */
+router.get(
+  "/list/:documentId",
+  authMiddleware,
+  auditLogger("VIEW_SIGNATURES"),
+  getSignatures
+);
 
 export default router;

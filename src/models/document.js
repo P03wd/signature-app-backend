@@ -1,66 +1,42 @@
 import mongoose from "mongoose";
 
-// Signature sub-schema
-const signatureSchema = new mongoose.Schema(
-  {
-    user: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
-    signedAt: {
-      type: Date,
-      default: Date.now,
-    },
-  },
-  { _id: false }
-
-);
-
-// Document schema
 const documentSchema = new mongoose.Schema(
   {
+    originalName: { type: String, required: true },
+    filePath: { type: String, required: true },
+    signedFilePath: String,
+
+    // owner still tracked for info but does not block actions
     owner: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
     },
-    originalName: {
-      type: String,
-      required: true,
-    },
-    storedName: {
-      type: String,
-      required: true,
-    },
-    filePath: {
-      type: String,
-      required: true,
-    },
-    // NEW FIELD → signed pdf path
-signedFilePath: {
-  type: String,
-},
 
-// NEW FIELD → when document got fully signed
-signedAt: {
-  type: Date,
-},
+    status: {
+      type: String,
+      default: "pending",
+    },
+
+    // remove restriction: any user can sign
     allowedSigners: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
       },
     ],
-    status: {
-      type: String,
-      enum: ["pending", "partially_signed", "signed"],
-      default: "pending",
-    },
-    signatures: [signatureSchema],
+
+    signedBy: [
+      {
+        type: String, // store emails of users who signed
+      },
+    ],
+
+    signedAt: Date,
   },
   { timestamps: true }
-  
 );
 
-export default mongoose.model("Document", documentSchema);
+const Document =
+  mongoose.models.Document || mongoose.model("Document", documentSchema);
+
+export default Document;

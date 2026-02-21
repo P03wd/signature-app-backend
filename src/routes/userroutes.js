@@ -1,19 +1,17 @@
-// backend/routes/userroutes.js
 import express from "express";
 import authMiddleware from "../middleware/authmiddleware.js";
+import User from "../models/user.js";
 
 const router = express.Router();
 
-/**
- * @route   GET /api/users/profile
- * @desc    Get logged-in user's profile
- * @access  Private (requires JWT)
- */
-router.get("/profile", authMiddleware, (req, res) => {
+router.get("/profile", authMiddleware, async (req, res) => {
   try {
+    const user = await User.findById(req.user.id).select("-password"); // exclude password
+    if (!user) return res.status(404).json({ message: "User not found" });
+
     res.json({
       message: "User profile fetched successfully",
-      user: req.user,
+      user,
     });
   } catch (err) {
     console.error("PROFILE ERROR:", err);

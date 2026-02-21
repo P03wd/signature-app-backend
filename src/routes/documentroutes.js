@@ -1,75 +1,68 @@
-// backend/routes/documentroutes.js
+// backend/src/routes/documentroutes.js
 import express from "express";
+import authMiddleware from "../middleware/authmiddleware.js"; // updated auth
+import uploadMiddleware from "../middleware/uploadmiddleware.js"; // for PDFs
+import auditLogger from "../middleware/auditlogger.js";
+
 import {
   uploadDocument,
-  getMyDocuments,
-  downloadDocument,
-  inviteSigner,
-  signDocument
+  getDocuments,
+  deleteDocument,
+  signDocument,
+  inviteSigner
 } from "../controllers/documentcontroller.js";
-import upload from "../middleware/uploadmiddleware.js";
-import authMiddleware from "../middleware/authmiddleware.js";
-import Document from "../models/document.js";
 
 const router = express.Router();
 
-/**
- * @route   POST /api/documents/upload
- * @desc    Upload a document (PDF)
- * @access  Authenticated users
- */
-router.post("/upload", authMiddleware, upload.single("document"), uploadDocument);
+/* =====================================================
+   UPLOAD DOCUMENT
+   Any logged-in user can upload
+===================================================== */
+router.post(
+  "/upload",
+  authMiddleware,
+  uploadMiddleware.single("document"),
+  auditLogger("UPLOAD_DOCUMENT"),
+  uploadDocument
+);
 
-/**
- * @route   GET /api/documents/my
- * @desc    Get documents owned by user or assigned to user
- * @access  Authenticated users
- */
-router.get("/my", authMiddleware, getMyDocuments);
+/* =====================================================
+   GET ALL DOCUMENTS
+   Any logged-in user can fetch all documents
+===================================================== */
+router.get("/", authMiddleware, getDocuments);
 
-/**
- * @route   GET /api/documents/download/:id
- * @desc    Download a document (owner only)
- * @access  Authenticated users
- */
-router.get("/download/:id", authMiddleware, downloadDocument);
+/* =====================================================
+   DELETE DOCUMENT
+   Any logged-in user can delete any document
+===================================================== */
+router.delete(
+  "/:id",
+  authMiddleware,
+  auditLogger("DELETE_DOCUMENT"),
+  deleteDocument
+);
 
-/**
- * @route   POST /api/documents/invite/:id
- * @desc    Invite a user to sign a document
- * @access  Authenticated users
- */
-router.post("/invite/:id", authMiddleware, inviteSigner);
+/* =====================================================
+   SIGN DOCUMENT
+   Any logged-in user can sign any document
+===================================================== */
+router.post(
+  "/:id/sign",
+  authMiddleware,
+  auditLogger("SIGN_DOCUMENT"),
+  signDocument
+);
 
-/**
- * @route   POST /api/documents/sign/:id
- * @desc    Sign a document
- * @access  Authenticated users
- */
-router.post("/sign/:id", authMiddleware, signDocument);
-
-/**
- * @route   GET /api/documents/
- * @desc    Optional: Fetch all documents related to the user
- * @access  Authenticated users
- */
-router.get("/", authMiddleware, async (req, res) => {
-  try {
-    const documents = await Document.find({
-      $or: [
-        { owner: req.user.id },
-        { allowedSigners: req.user.id }
-      ]
-    })
-      .populate("owner", "name email")
-      .populate("allowedSigners", "name email")
-      .populate("signatures.user", "name email");
-
-    res.json(documents);
-  } catch (err) {
-    console.error("DOCUMENT ROUTES ERROR:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
+/* =====================================================
+   INVITE SIGNER
+   Any logged-in user can invite any other user
+===================================================== */
+router.post(
+  "/:id/invite",
+  authMiddleware,
+  auditLogger("INVITE_USER"),
+  inviteSigner
+);
 
 export default router;
